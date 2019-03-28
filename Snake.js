@@ -1,7 +1,14 @@
-import React from "react";
-import { Button } from "semantic-ui-react";
+import React, { Component } from "react";
+import PropTypes from "prop-types";
 
-class Snake extends React.Component {
+class Snake extends Component {
+  static propTypes = {
+    classes: PropTypes.object,
+    leftWidth: PropTypes.number,
+    score: PropTypes.number.isRequired,
+    updateScore: PropTypes.func.isRequired
+  };
+
   constructor(props) {
     super(props);
 
@@ -22,13 +29,9 @@ class Snake extends React.Component {
       temp: [["x", "y"], ["x", "y"]],
       snack: ["x", "y"],
       snackHasBeenEaten: true,
-      score: 0,
       move: 5,
       gameOver: false
     };
-
-    this.updateCanvas = this.updateCanvas.bind(this);
-    this.gameOver = this.gameOver.bind(this);
   }
 
   componentDidMount() {
@@ -77,7 +80,7 @@ class Snake extends React.Component {
     });
   }
 
-  gameOver() {
+  gameOver = () => {
     if (this.canvas) {
       const context = this.canvas.getContext("2d");
       context.fillStyle = "#000";
@@ -87,11 +90,16 @@ class Snake extends React.Component {
       context.font = "15px Arial";
       context.fillText("THE SNAKE HAS DIED.", 0, 50);
     }
-  }
+  };
 
-  updateCanvas() {
+  updateCanvas = () => {
     //  Write initial position in temp[0][0]
     //  update circles at [0][0] and [0][1]
+
+    // TODO: the destructured value stays static after updating state,
+    // can't trust destructed value is most up to date.
+    const { circles, temp } = this.state;
+
     if (this.canvas) {
       const context = this.canvas.getContext("2d");
 
@@ -99,77 +107,53 @@ class Snake extends React.Component {
 
       if (this.state.lastKey === "w") {
         this.setState({
-          temp: [
-            [this.state.circles[0][0], this.state.circles[0][1]],
-            ...this.state.temp.slice(1)
-          ],
-          circles: [
-            [this.state.circles[0][0], this.state.circles[0][1] - 5],
-            ...this.state.circles.slice(1)
-          ]
+          temp: [[circles[0][0], circles[0][1]], ...this.state.temp.slice(1)],
+          circles: [[circles[0][0], circles[0][1] - 5], ...circles.slice(1)]
         });
       } else if (this.state.lastKey === "s") {
         this.setState({
-          temp: [
-            [this.state.circles[0][0], this.state.circles[0][1]],
-            ...this.state.temp.slice(1)
-          ],
-          circles: [
-            [this.state.circles[0][0], this.state.circles[0][1] + 5],
-            ...this.state.circles.slice(1)
-          ]
+          temp: [[circles[0][0], circles[0][1]], ...this.state.temp.slice(1)],
+          circles: [[circles[0][0], circles[0][1] + 5], ...circles.slice(1)]
         });
       } else if (this.state.lastKey === "a") {
         this.setState({
-          temp: [
-            [this.state.circles[0][0], this.state.circles[0][1]],
-            ...this.state.temp.slice(1)
-          ],
-          circles: [
-            [this.state.circles[0][0] - 5, this.state.circles[0][1]],
-            ...this.state.circles.slice(1)
-          ]
+          temp: [[circles[0][0], circles[0][1]], ...this.state.temp.slice(1)],
+          circles: [[circles[0][0] - 5, circles[0][1]], ...circles.slice(1)]
         });
       } else if (this.state.lastKey === "d") {
         this.setState({
-          temp: [
-            [this.state.circles[0][0], this.state.circles[0][1]],
-            ...this.state.temp.slice(1)
-          ],
-          circles: [
-            [this.state.circles[0][0] + 5, this.state.circles[0][1]],
-            ...this.state.circles.slice(1)
-          ]
+          temp: [[circles[0][0], circles[0][1]], ...this.state.temp.slice(1)],
+          circles: [[circles[0][0] + 5, circles[0][1]], ...circles.slice(1)]
         });
       }
 
       context.clearRect(0, 0, 400, 400);
       context.fillStyle = "#fff";
       context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-      context.fillStyle = "#000";
+      context.fillStyle = this.state.snackHasBeenEaten ? "#FF0000" : "#000";
       context.beginPath();
 
-      context.fillRect(
-        this.state.circles[0][0],
-        this.state.circles[0][1],
-        5,
-        5
-      );
-      for (let i = 1; i < this.state.circles.length; i++) {
+      context.fillRect(circles[0][0], circles[0][1], 5, 5);
+      // TODO: A better pattern would be
+      // getting the state of the snake position --> draw snake
+      // right now we are calculating the snakes state as we draw the
+      // snake === confusing and more room for error
+      for (let i = 1; i < circles.length; i++) {
         if (i % 2 !== 0 && this.state.lastKey !== null) {
-          this.setState({
+          this.setState((prevState, props) => ({
             temp: [
-              ...this.state.temp.slice(0, 1),
-              [this.state.circles[i][0], this.state.circles[i][1]]
+              ...prevState.temp.slice(0, 1),
+              [prevState.circles[i][0], prevState.circles[i][1]]
             ]
-          });
-          this.setState({
+          }));
+
+          this.setState((prevState, props) => ({
             circles: [
-              ...this.state.circles.slice(0, i),
-              [this.state.temp[0][0], this.state.temp[0][1]],
-              ...this.state.circles.slice(i + 1)
+              ...prevState.circles.slice(0, i),
+              [prevState.temp[0][0], prevState.temp[0][1]],
+              ...prevState.circles.slice(i + 1)
             ]
-          });
+          }));
         } else if (i % 2 === 0 && this.state.lastKey !== null) {
           this.setState({
             temp: [
@@ -197,22 +181,16 @@ class Snake extends React.Component {
       if (this.state.snackHasBeenEaten === true) {
         this.setState({
           snack: [
-            Math.floor(Math.random() * 390 + 5),
-            Math.floor(Math.random() * 390 + 5)
+            Math.floor(Math.random() * this.canvas.width + 5),
+            Math.floor(Math.random() * this.canvas.height + 5)
           ],
           snackHasBeenEaten: false
         });
       }
 
-      context.drawImage(
-        image,
-        this.state.snack[0] - 5,
-        this.state.snack[1] - 5,
-        30,
-        30
-      );
       context.beginPath();
-      context.arc(this.state.snack[0], this.state.snack[1], 3, 0, 2 * Math.PI);
+      context.fillStyle = "#FF0000";
+      context.fillRect(this.state.snack[0], this.state.snack[1], 5, 5);
       context.stroke();
 
       //did snek eat snack?
@@ -224,16 +202,15 @@ class Snake extends React.Component {
       ) {
         this.setState({
           snackHasBeenEaten: true,
-          circles: [...this.state.circles, ["x", "y"], ["x", "y"], ["x", "y"]],
-          score: this.state.score + 100
+          circles: [...this.state.circles, ["x", "y"], ["x", "y"], ["x", "y"]]
         });
       }
 
       if (
         this.state.circles[0][0] < 0 ||
-        this.state.circles[0][0] > 400 ||
+        this.state.circles[0][0] > this.canvas.width ||
         this.state.circles[0][1] < 0 ||
-        this.state.circles[0][1] > 400
+        this.state.circles[0][1] > this.canvas.height
       ) {
         this.setState({
           gameOver: true
@@ -251,40 +228,17 @@ class Snake extends React.Component {
         }
       }
     }
-  }
+  };
 
   render() {
-    let button = null;
-
-    if (
-      this.state.score >= this.props.scoreToBeat &&
-      this.props.broken === false
-    ) {
-      button = (
-        <Button onClick={this.props.setBrokenToTrue} color={"green"}>
-          POST
-        </Button>
-      );
-    }
+    const { width, height } = this.props;
 
     return (
-      <div>
-        <div className="scores">
-          <div className="score"> SCORE: {this.state.score} </div>
-          <div className="scoreToBeat">
-            {" "}
-            SCORE TO BEAT: {this.props.scoreToBeat}{" "}
-          </div>
-        </div>
-        <canvas
-          width="400"
-          height="400"
-          ref={canvas => (this.canvas = canvas)}
-          className="canvas"
-        />
-        <br />
-        <div className="buttonContainer">{button}</div>
-      </div>
+      <canvas
+        width={width}
+        height={height}
+        ref={canvas => (this.canvas = canvas)}
+      />
     );
   }
 }
